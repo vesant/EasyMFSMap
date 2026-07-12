@@ -65,4 +65,3 @@ WINEPREFIX="/path/to/SteamLibrary/steamapps/compatdata/1250410/pfx" wine python 
 ## Technical Details
 - The extractor samples data every 0.5 seconds and sends a small JSON payload over `UDP 127.0.0.1:5000`.
 - The native FastAPI server listens on `UDP 5000` and relays the telemetry payload to the connected browser client over WebSockets.
-- All code is strictly documented and written in English.
