@@ -30,61 +30,32 @@ def setup_linux_venv():
     run_cmd([pip_exe, "install", "fastapi", "uvicorn", "websockets"])
     return venv_dir
 
-def find_msfs_prefix():
-    print("\n=== Locating MSFS 2020 Steam Prefix ===")
-    common_paths = [
-        os.path.expanduser(f"~/.steam/steam/steamapps/compatdata/{MSFS_APPID}/pfx"),
-        os.path.expanduser(f"~/.local/share/Steam/steamapps/compatdata/{MSFS_APPID}/pfx")
-    ]
-    
-    for path in common_paths:
-        if os.path.exists(path):
-            print(f"Found prefix at: {path}")
-            return path
-            
-    print("Could not automatically locate the MSFS 2020 WINE prefix.")
-    print(f"Example: /home/user/.steam/steam/steamapps/compatdata/{MSFS_APPID}/pfx")
-    custom_path = input(f"Please enter the path to the MSFS compatdata/{MSFS_APPID}/pfx folder: ").strip()
-    
-    # Try to derive prefix if they gave a SteamLibrary or common folder
-    if "steamapps" in custom_path:
-        base_steamapps = custom_path.split("steamapps")[0] + "steamapps"
-        inferred_path = os.path.join(base_steamapps, "compatdata", MSFS_APPID, "pfx")
-        if os.path.exists(inferred_path) and os.path.exists(os.path.join(inferred_path, "drive_c")):
-            print(f"Inferred WINE prefix from input: {inferred_path}")
-            return inferred_path
 
-    if not os.path.exists(custom_path) or not os.path.exists(os.path.join(custom_path, "drive_c")):
-        print("\nError: The specified path does not exist or is not a valid WINE prefix (missing 'drive_c' folder). Exiting.")
-        sys.exit(1)
-    return custom_path
 
-def ensure_windows_python(wine_prefix):
-    print("\n=== Verifying Windows Python in WINE Prefix ===")
-    env = os.environ.copy()
-    env["WINEPREFIX"] = wine_prefix
+def ensure_windows_python():
+    print("\n=== Verifying Windows Python in Proton Prefix ===")
     
     print("Checking if Windows Python is installed...")
-    result = subprocess.run(["wine", "python", "--version"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    result = subprocess.run(["protontricks", "-c", "wine python --version", MSFS_APPID], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     if result.returncode != 0:
-        print("Windows Python not found in WINE prefix. Downloading installer...")
+        print("Windows Python not found in Proton prefix. Downloading installer...")
         if not os.path.exists(PYTHON_INSTALLER_FILE):
             print(f"Downloading {PYTHON_INSTALLER_FILE}...")
             urllib.request.urlretrieve(PYTHON_INSTALLER_URL, PYTHON_INSTALLER_FILE)
             print("Download complete.")
             
-        print("Installing Windows Python silently via WINE. This may take a moment...")
-        run_cmd(["wine", PYTHON_INSTALLER_FILE, "/quiet", "InstallAllUsers=0", "PrependPath=1", "Include_test=0"], env=env)
+        print("Installing Windows Python silently via Protontricks. This may take a moment...")
+        abs_installer = os.path.abspath(PYTHON_INSTALLER_FILE)
+        cmd_str = f"wine {abs_installer} /quiet InstallAllUsers=0 PrependPath=1 Include_test=0"
+        run_cmd(["protontricks", "-c", cmd_str, MSFS_APPID])
         print("Windows Python installed successfully.")
     else:
         print("Windows Python is already installed.")
 
-def install_windows_dependencies(wine_prefix):
+def install_windows_dependencies():
     print("\n=== Installing Windows Dependencies (SimConnect) ===")
-    env = os.environ.copy()
-    env["WINEPREFIX"] = wine_prefix
-    run_cmd(["wine", "python", "-m", "pip", "install", "SimConnect==0.4.38"], env=env)
+    run_cmd(["protontricks", "-c", "wine python -m pip install SimConnect==0.4.38", MSFS_APPID])
 
 def start_server_and_browser(venv_dir):
     print("\n=== Starting Map Server ===")
@@ -97,62 +68,39 @@ def start_server_and_browser(venv_dir):
     
     return server_process
 
-def start_extractor(wine_prefix):
+def start_extractor():
     print("\n=== Telemetry Extractor ===")
     input("Press Enter when your flight is loaded and ready in MSFS 2020...")
     
-    env = os.environ.copy()
-    env["WINEPREFIX"] = wine_prefix
-    extractor_path = os.path.join("telemetry_extractor", "extractor.py")
+    extractor_path = os.path.abspath(os.path.join("telemetry_extractor", "extractor.py"))
     
-    print("Starting Telemetry Extractor inside WINE...")
-    extractor_process = subprocess.Popen(["wine", "python", extractor_path], env=env)
+    print("Starting Telemetry Extractor inside Proton...")
+    extractor_process = subprocess.Popen(["protontricks", "-c", f"wine python '{extractor_path}'", MSFS_APPID])
     return extractor_process
 
-def check_wine():
-    if shutil.which("wine") is None:
-        print("\n'wine' is not installed or not found in your system PATH.")
-        print("Attempting to install WINE automatically. You may be prompted for your sudo password.")
-        
-        if shutil.which("apt"):
-            run_cmd(["sudo", "apt", "update"])
-            run_cmd(["sudo", "apt", "install", "-y", "wine"])
-        elif shutil.which("dnf"):
-            run_cmd(["sudo", "rpm-ostree", "install", "wine"]) # Fedora Atomic images utilize rpm-ostree instead of dnf
-            # fedora needs restart after install
-            print("Rebooting Fedora to finalize WINE installation... Please rerun the script after reboot.")
-            time.sleep(3)
-            run_cmd(["systemctl", "reboot"])
-        elif shutil.which("pacman"):
-            run_cmd(["sudo", "pacman", "-S", "--noconfirm", "wine"])
-        elif shutil.which("zypper"):
-            run_cmd(["sudo", "zypper", "install", "-y", "wine"])
-        else:
-            print("Could not determine your package manager. Please install WINE manually.")
-            sys.exit(1)
-            
-        if shutil.which("wine") is None:
-            print("WINE installation failed or executable still not found. Please install it manually.")
-            sys.exit(1)
-        print("WINE installed successfully.")
+def check_protontricks():
+    if shutil.which("protontricks") is None:
+        print("\n'protontricks' is not installed or not found in your system PATH.")
+        print("We use protontricks to safely interface with the MSFS Proton environment.")
+        print("Please install protontricks (e.g., via your package manager or flatpak) and run this script again.")
+        sys.exit(1)
 
 def main():
     print("========================================")
     print("    EasyMFSMap Automated Executer       ")
     print("========================================")
     
-    check_wine()
+    check_protontricks()
     
     venv_dir = setup_linux_venv()
-    wine_prefix = find_msfs_prefix()
     
-    ensure_windows_python(wine_prefix)
-    install_windows_dependencies(wine_prefix)
+    ensure_windows_python()
+    install_windows_dependencies()
     
     server_process = start_server_and_browser(venv_dir)
     
     try:
-        extractor_process = start_extractor(wine_prefix)
+        extractor_process = start_extractor()
         print("\nAll processes running. Press Ctrl+C to exit.")
         extractor_process.wait()
     except KeyboardInterrupt:
