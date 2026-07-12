@@ -102,9 +102,26 @@ def start_extractor(wine_prefix):
 
 def check_wine():
     if shutil.which("wine") is None:
-        print("\nError: 'wine' is not installed or not found in your system PATH.")
-        print("Please install WINE (e.g., 'sudo apt install wine' or your distribution's equivalent) and try again.")
-        sys.exit(1)
+        print("\n'wine' is not installed or not found in your system PATH.")
+        print("Attempting to install WINE automatically. You may be prompted for your sudo password.")
+        
+        if shutil.which("apt"):
+            run_cmd(["sudo", "apt", "update"])
+            run_cmd(["sudo", "apt", "install", "-y", "wine"])
+        elif shutil.which("dnf"):
+            run_cmd(["sudo", "dnf", "install", "-y", "wine"])
+        elif shutil.which("pacman"):
+            run_cmd(["sudo", "pacman", "-S", "--noconfirm", "wine"])
+        elif shutil.which("zypper"):
+            run_cmd(["sudo", "zypper", "install", "-y", "wine"])
+        else:
+            print("Could not determine your package manager. Please install WINE manually.")
+            sys.exit(1)
+            
+        if shutil.which("wine") is None:
+            print("WINE installation failed or executable still not found. Please install it manually.")
+            sys.exit(1)
+        print("WINE installed successfully.")
 
 def main():
     print("========================================")
