@@ -1,0 +1,7 @@
+# Map Server Dependencies (Native Linux)
+fastapi
+uvicorn
+websockets
+
+# Telemetry Extractor Dependencies (Windows/Proton Prefix)
+SimConnect==0.4.38; sys_platform == 'win32'
