@@ -109,7 +109,7 @@ def check_wine():
             run_cmd(["sudo", "apt", "update"])
             run_cmd(["sudo", "apt", "install", "-y", "wine"])
         elif shutil.which("dnf"):
-            run_cmd(["sudo", "dnf", "install", "-y", "wine"])
+            run_cmd(["sudo", "rpm-ostree", "install", "-y", "wine"]) # Fedora Atomic images utilize rpm-ostree instead of dnf
         elif shutil.which("pacman"):
             run_cmd(["sudo", "pacman", "-S", "--noconfirm", "wine"])
         elif shutil.which("zypper"):
