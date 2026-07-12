@@ -55,7 +55,7 @@ def ensure_windows_python():
 
 def install_windows_dependencies():
     print("\n=== Installing Windows Dependencies (SimConnect) ===")
-    run_cmd(["protontricks", "-c", "wine python -m pip install SimConnect==0.4.38", MSFS_APPID])
+    run_cmd(["protontricks", "-c", "wine python -m pip install SimConnect", MSFS_APPID])
 
 def start_server_and_browser(venv_dir):
     print("\n=== Starting Map Server ===")
