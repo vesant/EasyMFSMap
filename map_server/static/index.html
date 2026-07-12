@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSFS Flight Tracker</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.85);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #map {
+            flex: 1;
+            height: 100%;
+            z-index: 1;
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+
+        .overlay-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            z-index: 1000;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--danger-color);
+            box-shadow: 0 0 8px var(--danger-color);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .status-dot.connected {
+            background-color: var(--success-color);
+            box-shadow: 0 0 8px var(--success-color);
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .data-item {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.2s ease;
+        }
+
+        .data-item:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .data-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .data-value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--accent-color);
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .unit {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .plane-icon {
+            transition: transform 0.1s linear;
+        }
+        
+        .leaflet-container {
+            background: #0f172a;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div class="overlay-panel">
+        <div class="header">
+            <h1>Flight Telemetry</h1>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText" style="color: var(--text-secondary);">Offline</span>
+            </div>
+        </div>
+
+        <div class="data-grid">
+            <div class="data-item">
+                <div class="data-label">Altitude</div>
+                <div class="data-value" id="valAltitude">0 <span class="unit">ft</span></div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Heading</div>
+                <div class="data-value" id="valHeading">0 <span class="unit">deg</span></div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Latitude</div>
+                <div class="data-value" id="valLat">0.0000</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Longitude</div>
+                <div class="data-value" id="valLon">0.0000</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Initialize Map
+        const map = L.map('map', {
+            zoomControl: false,
+            attributionControl: false
+        }).setView([0, 0], 3);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        // Custom airplane icon using SVG
+        const planeSvg = `
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 16V14L13 9V3.5C13 2.67 12.33 2 11.5 2C10.67 2 10 2.67 10 3.5V9L2 14V16L10 13.5V19L8 20.5V22L11.5 21L15 22V20.5L13 19V13.5L21 16Z" fill="#3b82f6" filter="drop-shadow(0px 0px 4px rgba(59, 130, 246, 0.8))"/>
+            </svg>`;
+        
+        const planeIcon = L.divIcon({
+            html: `<div class="plane-icon" id="planeIconContainer">${planeSvg}</div>`,
+            className: '',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+
+        let marker = null;
+        let isFirstData = true;
+
+        // UI Elements
+        const valLat = document.getElementById('valLat');
+        const valLon = document.getElementById('valLon');
+        const valAltitude = document.getElementById('valAltitude');
+        const valHeading = document.getElementById('valHeading');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        function updateUI(data) {
+            const lat = parseFloat(data.latitude);
+            const lon = parseFloat(data.longitude);
+            const alt = parseFloat(data.altitude);
+            const heading = parseFloat(data.heading);
+
+            // Ignore zero-coords before connection to sim is solid
+            if (lat === 0 && lon === 0 && alt === 0) return;
+
+            valLat.textContent = lat.toFixed(4);
+            valLon.textContent = lon.toFixed(4);
+            valAltitude.innerHTML = `${Math.round(alt)} <span class="unit">ft</span>`;
+            valHeading.innerHTML = `${Math.round(heading)} <span class="unit">&deg;</span>`;
+
+            if (!marker) {
+                marker = L.marker([lat, lon], { icon: planeIcon }).addTo(map);
+            } else {
+                marker.setLatLng([lat, lon]);
+            }
+
+            // Rotate airplane
+            const iconContainer = document.getElementById('planeIconContainer');
+            if (iconContainer) {
+                iconContainer.style.transform = `rotate(${heading}deg)`;
+            }
+
+            if (isFirstData) {
+                map.setView([lat, lon], 12);
+                isFirstData = false;
+            } else {
+                // Smooth pan if outside bounds, else just let marker move
+                if (!map.getBounds().contains([lat, lon])) {
+                    map.panTo([lat, lon]);
+                }
+            }
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            const ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+                statusText.style.color = 'var(--text-primary)';
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateUI(data);
+            };
+
+            ws.onclose = () => {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+                statusText.style.color = 'var(--text-secondary)';
+                // Attempt reconnect
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket Error:', err);
+                ws.close();
+            };
+        }
+
+        // Start connection
+        connectWebSocket();
+    </script>
+</body>
+</html>
