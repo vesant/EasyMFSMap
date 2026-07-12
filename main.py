@@ -4,6 +4,7 @@ import subprocess
 import urllib.request
 import webbrowser
 import time
+import shutil
 
 PYTHON_INSTALLER_URL = "https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe"
 PYTHON_INSTALLER_FILE = "python-3.10.11-amd64.exe"
@@ -42,9 +43,10 @@ def find_msfs_prefix():
             return path
             
     print("Could not automatically locate the MSFS 2020 WINE prefix.")
+    print(f"Example: /home/user/.steam/steam/steamapps/compatdata/{MSFS_APPID}/pfx")
     custom_path = input(f"Please enter the path to the MSFS compatdata/{MSFS_APPID}/pfx folder: ").strip()
-    if not os.path.exists(custom_path):
-        print("The specified path does not exist. Exiting.")
+    if not os.path.exists(custom_path) or not os.path.exists(os.path.join(custom_path, "drive_c")):
+        print("\nError: The specified path does not exist or is not a valid WINE prefix (missing 'drive_c' folder). Exiting.")
         sys.exit(1)
     return custom_path
 
@@ -98,10 +100,18 @@ def start_extractor(wine_prefix):
     extractor_process = subprocess.Popen(["wine", "python", extractor_path], env=env)
     return extractor_process
 
+def check_wine():
+    if shutil.which("wine") is None:
+        print("\nError: 'wine' is not installed or not found in your system PATH.")
+        print("Please install WINE (e.g., 'sudo apt install wine' or your distribution's equivalent) and try again.")
+        sys.exit(1)
+
 def main():
     print("========================================")
     print("    EasyMFSMap Automated Executer       ")
     print("========================================")
+    
+    check_wine()
     
     venv_dir = setup_linux_venv()
     wine_prefix = find_msfs_prefix()
