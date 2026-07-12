@@ -144,6 +144,53 @@
 
         .plane-icon {
             transition: transform 0.1s linear;
+            transform-origin: center center;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Switch CSS */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
         }
         
         .leaflet-container {
@@ -162,6 +209,14 @@
                 <div class="status-dot" id="statusDot"></div>
                 <span id="statusText" style="color: var(--text-secondary);">Offline</span>
             </div>
+        </div>
+
+        <div class="control-group" style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 16px;">
+            <span style="font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Follow Plane</span>
+            <label class="switch">
+                <input type="checkbox" id="followPlaneToggle" checked>
+                <span class="slider round"></span>
+            </label>
         </div>
 
         <div class="data-grid">
@@ -221,6 +276,15 @@
         const valHeading = document.getElementById('valHeading');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
+        const followPlaneToggle = document.getElementById('followPlaneToggle');
+
+        let isFollowing = true;
+        followPlaneToggle.addEventListener('change', (e) => {
+            isFollowing = e.target.checked;
+            if (isFollowing && marker) {
+                map.setView(marker.getLatLng(), map.getZoom(), {animate: true});
+            }
+        });
 
         function updateUI(data) {
             const lat = parseFloat(data.latitude);
@@ -243,7 +307,7 @@
             }
 
             // Rotate airplane
-            const iconContainer = document.getElementById('planeIconContainer');
+            const iconContainer = document.querySelector('.plane-icon');
             if (iconContainer) {
                 iconContainer.style.transform = `rotate(${heading}deg)`;
             }
@@ -251,11 +315,8 @@
             if (isFirstData) {
                 map.setView([lat, lon], 12);
                 isFirstData = false;
-            } else {
-                // Smooth pan if outside bounds, else just let marker move
-                if (!map.getBounds().contains([lat, lon])) {
-                    map.panTo([lat, lon]);
-                }
+            } else if (isFollowing) {
+                map.setView([lat, lon], map.getZoom(), {animate: false});
             }
         }
 
