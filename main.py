@@ -45,6 +45,15 @@ def find_msfs_prefix():
     print("Could not automatically locate the MSFS 2020 WINE prefix.")
     print(f"Example: /home/user/.steam/steam/steamapps/compatdata/{MSFS_APPID}/pfx")
     custom_path = input(f"Please enter the path to the MSFS compatdata/{MSFS_APPID}/pfx folder: ").strip()
+    
+    # Try to derive prefix if they gave a SteamLibrary or common folder
+    if "steamapps" in custom_path:
+        base_steamapps = custom_path.split("steamapps")[0] + "steamapps"
+        inferred_path = os.path.join(base_steamapps, "compatdata", MSFS_APPID, "pfx")
+        if os.path.exists(inferred_path) and os.path.exists(os.path.join(inferred_path, "drive_c")):
+            print(f"Inferred WINE prefix from input: {inferred_path}")
+            return inferred_path
+
     if not os.path.exists(custom_path) or not os.path.exists(os.path.join(custom_path, "drive_c")):
         print("\nError: The specified path does not exist or is not a valid WINE prefix (missing 'drive_c' folder). Exiting.")
         sys.exit(1)
