@@ -10,80 +10,59 @@ This project uses a network bridge architecture to bypass the limitations of Pro
 
 ```text
 EasyMFSMap/
+├── main.py                 (Automated setup and execution orchestrator)
+├── requirements.txt        (Combined dependencies)
 ├── telemetry_extractor/
-│   ├── extractor.py        (Runs in Proton, extracts SimConnect data)
-│   └── requirements.txt    (Windows Python dependencies)
-├── map_server/
-│   ├── server.py           (Native Linux FastAPI backend)
-│   ├── requirements.txt    (Linux Python dependencies)
-│   └── static/
-│       └── index.html      (Interactive Leaflet.js frontend)
-└── README.md
+│   └── extractor.py        (Runs in Proton, extracts SimConnect data)
+└── map_server/
+    ├── server.py           (Native Linux FastAPI backend)
+    └── static/
+        └── index.html      (Interactive Leaflet.js frontend)
 ```
 
 ## Prerequisites
 
 1. **Microsoft Flight Simulator 2020** installed via Steam/Proton.
-2. **Windows Python** installed inside the MSFS 2020 WINE/Proton prefix.
-3. **Native Linux Python** (Python 3.8+) installed on your host system.
+2. **Native Linux Python** (Python 3.8+) installed on your host system.
+3. **WINE** installed on your system.
 
-## Installation Instructions
+## Quick Start (Automated Setup)
 
-### 1. Set up the Native Map Server (Linux Side)
+The easiest way to run the tracker is to use the included `main.py` script. It will automatically create virtual environments, install dependencies, find your MSFS 2020 installation, and install Windows Python inside the prefix if necessary.
 
-Open a terminal on your Linux host and install the requirements for the map server:
+Open a terminal in the root directory of this project and run:
 
 ```bash
-cd EasyMFSMap/map_server
+python3 main.py
+```
+
+### What `main.py` does:
+1. Sets up a local Linux `venv` and installs the required server packages (`fastapi`, `uvicorn`, `websockets`).
+2. Automatically locates your MSFS 2020 Steam prefix (`compatdata/1250410/pfx`).
+3. Checks if Windows Python is installed in that prefix. If not, it downloads and silently installs Python 3.10 via WINE.
+4. Installs the `SimConnect` library into the WINE prefix.
+5. Starts the map server natively and opens your default web browser.
+6. Prompts you to press Enter once your flight is loaded in the game, and then starts the telemetry extractor inside WINE.
+
+## Manual Execution (Advanced)
+
+If you prefer to start things manually:
+
+### 1. Start the Map Server
+```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+uvicorn map_server.server:app --host 0.0.0.0 --port 8000
 ```
 
-### 2. Set up the Telemetry Extractor (Proton/WINE Side)
-
-You need to run Windows Python inside the same prefix as MSFS 2020 to access the `SimConnect` API.
-
-1. Download a Windows Python installer (e.g., Python 3.10) and install it using `protontricks` or `WINEPREFIX`.
-2. Once installed, run `pip` inside the prefix to install the `SimConnect` library:
-
+### 2. Start the Telemetry Extractor
+Ensure you have Windows Python and `SimConnect` installed in your WINE prefix, then run:
 ```bash
-WINEPREFIX="/path/to/SteamLibrary/steamapps/compatdata/1250410/pfx" wine python -m pip install -r telemetry_extractor/requirements.txt
+WINEPREFIX="/path/to/SteamLibrary/steamapps/compatdata/1250410/pfx" wine python telemetry_extractor/extractor.py
 ```
-*(Ensure you adjust the WINEPREFIX path to your actual MSFS compatdata folder).*
-
-## Execution
-
-To start tracking your flight, follow these steps in order:
-
-### 1. Start the Map Server
-On your native Linux terminal:
-```bash
-cd EasyMFSMap/map_server
-source venv/bin/activate
-uvicorn server:app --host 0.0.0.0 --port 8000
-```
-Keep this terminal open.
-
-### 2. Open the Map
-Open your web browser and navigate to:
-```text
-http://127.0.0.1:8000
-```
-You will see the map interface showing "Disconnected" or "Waiting" for data.
-
-### 3. Start Microsoft Flight Simulator 2020
-Launch the game normally through Steam and load into a flight.
-
-### 4. Start the Telemetry Extractor
-Once loaded into the flight, run the extractor script inside the WINE prefix:
-
-```bash
-WINEPREFIX="/path/to/SteamLibrary/steamapps/compatdata/1250410/pfx" wine python EasyMFSMap/telemetry_extractor/extractor.py
-```
-The script will output `Connected to SimConnect successfully` and begin broadcasting UDP packets to your Linux server. 
-The web map will immediately update and show your aircraft's live position.
 
 ## Technical Details
 - The extractor samples data every 0.5 seconds and sends a small JSON payload over `UDP 127.0.0.1:5000`.
 - The native FastAPI server listens on `UDP 5000` and relays the telemetry payload to the connected browser client over WebSockets.
+- All code is strictly documented and written in English.
