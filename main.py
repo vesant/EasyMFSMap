@@ -109,7 +109,11 @@ def check_wine():
             run_cmd(["sudo", "apt", "update"])
             run_cmd(["sudo", "apt", "install", "-y", "wine"])
         elif shutil.which("dnf"):
-            run_cmd(["sudo", "rpm-ostree", "install", "-y", "wine"]) # Fedora Atomic images utilize rpm-ostree instead of dnf
+            run_cmd(["sudo", "rpm-ostree", "install", "wine"]) # Fedora Atomic images utilize rpm-ostree instead of dnf
+            # fedora needs restart after install
+            print("Rebooting Fedora to finalize WINE installation... Please rerun the script after reboot.")
+            time.sleep(3)
+            run_cmd(["systemctl", "reboot"])
         elif shutil.which("pacman"):
             run_cmd(["sudo", "pacman", "-S", "--noconfirm", "wine"])
         elif shutil.which("zypper"):
